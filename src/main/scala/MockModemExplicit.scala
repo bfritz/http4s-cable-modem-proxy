@@ -8,6 +8,8 @@ import org.http4s.server.blaze._
 
 object MockModemExplicit {
 
+  private val logger = org.log4s.getLogger
+
   private val ConnectorPoolSize = 2 // plenty to imitate a cable modem
   private val StaticExtensions = List("htm", "js", "gif")
 
@@ -27,7 +29,11 @@ object MockModemExplicit {
     server.shutdownNow()
   }
 
-  def serve(file: String, request: Request): Task[Response] =
-    StaticFile.fromResource("/modem/demo" + file, Some(request))
+  def serve(file: String, request: Request): Task[Response] = {
+    val path = s"/modem/demo$file"
+    logger.debug(s"Serving $path for request $request")
+
+    StaticFile.fromResource(path, Some(request))
       .map(Task.now).getOrElse(NotFound())
+  }
 }

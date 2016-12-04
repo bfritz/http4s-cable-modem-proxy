@@ -1,9 +1,12 @@
 import scala.io.StdIn.readLine
 
 import scalaz.concurrent.Task
+import scalaz.\/-
+import scalaz.-\/
 
 import org.http4s._
 import org.http4s.dsl._
+import org.http4s.server.Server
 import org.http4s.server.blaze._
 
 object MockModemExplicit {
@@ -19,14 +22,15 @@ object MockModemExplicit {
         serve(s"$path.$ext", request)
     }
 
-    val builder = BlazeBuilder.bindHttp(8080, "localhost")
+    val serverTask: Task[Server] = BlazeBuilder.bindHttp(8080, "localhost")
       .withConnectorPoolSize(ConnectorPoolSize)
       .mountService(fakeModem, "/")
+      .start
 
-    val server = builder.run
-
-    readLine("Press enter to stop server.")
-    server.shutdownNow()
+    serverTask.unsafePerformSyncAttempt match {
+      case \/-(server) => awaitShutdown(server)
+      case -\/(ex)     => logger.error(ex)("Failed to start server.")
+    }
   }
 
   def serve(file: String, request: Request): Task[Response] = {
@@ -35,5 +39,10 @@ object MockModemExplicit {
 
     StaticFile.fromResource(path, Some(request))
       .map(Task.now).getOrElse(NotFound())
+  }
+
+  def awaitShutdown(server: Server) = {
+    readLine("Press enter to stop server.")
+    server.shutdownNow()
   }
 }

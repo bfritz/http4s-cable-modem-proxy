@@ -23,9 +23,11 @@ object Modem {
 
   private val ConnectorPoolSize = 2 // plenty to imitate a cable modem
   private val StaticExtensions = List("htm", "js", "gif")
+  private val IndexPage = Uri.unsafeFromString("/index.htm")
 
   def main(args: Array[String]) {
     val fakeModem = HttpService {
+      case request @ GET -> Root => TemporaryRedirect(IndexPage)
       case request @ GET -> path ~ ext if StaticExtensions.contains(ext) =>
         serve(s"$path.$ext", request)
     }

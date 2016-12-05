@@ -6,9 +6,9 @@ written in Go that exposes Motorola SURFboard stats for [Prometheus](http://prom
 to scrape.
 
 There are two http4s [services](http://http4s.org/docs/0.15/service.html)...
-The [first service](src/main/scala/Modem.scala) serves static files
-scraped from a real modem to mock it for demo purposes.  The fake
-modem can be started with:
+The [first service](src/main/scala/Modem.scala) serves static
+[files](src/main/resources/modem/demo/) scraped from a real modem
+to mock it for demo purposes.  The fake modem can be started with:
 
     sbt "run-main Modem"
 

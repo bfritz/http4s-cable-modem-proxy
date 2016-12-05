@@ -1,6 +1,4 @@
 import argonaut._, Argonaut._
-import net.ruippeixotog.scalascraper.browser.JsoupBrowser
-import net.ruippeixotog.scalascraper.dsl.DSL._, Extract.text
 
 import org.http4s.HttpService
 import org.http4s.argonaut._
@@ -22,8 +20,8 @@ object Status {
 object Proxy extends ServerApp {
 
   private val ProxyPort = 8090
-  private val StatusCellSelector = "table:eq(0) tr:eq(7) td:eq(1)"
-  private val UptimeCellSelector = "table:eq(1) tr:eq(2) td:eq(1)"
+  private val StatusCellSelector = "tr:eq(7) td:eq(1)" // in first table
+  private val UptimeCellSelector = "tr:eq(2) td:eq(1)" // in second table
   private val StatusPage = "http://localhost:8080/indexData.htm"
 
   lazy val httpClient = PooledHttp1Client()
@@ -49,13 +47,18 @@ object Proxy extends ServerApp {
   }
 
   def getStatus(client: Client): \/[String, Status] = {
+    import net.ruippeixotog.scalascraper.browser.JsoupBrowser
+    import net.ruippeixotog.scalascraper.dsl.DSL._, Extract.text, Extract.elementList
+    import net.ruippeixotog.scalascraper.model.Element
+
     val request = client.expect[String](StatusPage)
     val pageHtml = request.run
 
     val browser = JsoupBrowser()
     val doc = browser.parseString(pageHtml)
-    val status: Option[String] = doc >?> text(StatusCellSelector)
-    val uptimeText: Option[String] = doc >?> text(UptimeCellSelector)
+    val tables: List[Element] = doc >> elementList("table")
+    val status: Option[String] = tables.lift(0).flatMap(_ >?> text(StatusCellSelector))
+    val uptimeText: Option[String] = tables.lift(1).flatMap(_ >?> text(UptimeCellSelector))
 
     \/-(Status(status, uptimeText))
   }

@@ -9,7 +9,15 @@ import org.http4s.dsl._
 import org.http4s.server.Server
 import org.http4s.server.blaze._
 
-object MockModemExplicit {
+/**
+ * Immitates a Motorola SURFboard 6141 cable modem by
+ * serving static files scraped from the real thing.
+ *
+ * Could have extended `ServerApp` to reduce the amount
+ * of code, but making things a bit more explicit for
+ * discussion purposes.
+ */
+object Modem {
 
   private val logger = org.log4s.getLogger
 

@@ -1,10 +1,14 @@
 import argonaut._, Argonaut._
 import net.ruippeixotog.scalascraper.browser.JsoupBrowser
-import net.ruippeixotog.scalascraper.dsl.DSL._
-import net.ruippeixotog.scalascraper.dsl.DSL.Extract.text
+import net.ruippeixotog.scalascraper.dsl.DSL._, Extract.text
 
+import org.http4s.HttpService
+import org.http4s.argonaut._
 import org.http4s.client.Client
 import org.http4s.client.blaze._
+import org.http4s.dsl._
+import org.http4s.server.{Server, ServerApp}
+import org.http4s.server.blaze.BlazeBuilder
 
 import scalaz._
 
@@ -15,20 +19,33 @@ object Status {
     casecodec2(Status.apply, Status.unapply)("status", "uptime")
 }
 
-object Proxy {
+object Proxy extends ServerApp {
 
+  private val ProxyPort = 8090
   private val StatusCellSelector = "table:eq(0) tr:eq(7) td:eq(1)"
   private val UptimeCellSelector = "table:eq(1) tr:eq(2) td:eq(1)"
   private val StatusPage = "http://localhost:8080/indexData.htm"
 
-  def main(args: Array[String]) {
-    val httpClient = PooledHttp1Client()
+  lazy val httpClient = PooledHttp1Client()
 
-    for {
-      status <- getStatus(httpClient)
-    } println(s"status: ${status.asJson.spaces2}")
+  def jsonProxy(client: Client) = HttpService {
+    case request @ GET -> Root / "status" => {
+      getStatus(client) match {
+        case \/-(status) => Ok(status.asJson)
+        case -\/(error) => BadGateway(error)
+      }
+    }
+  }
 
+  def server(args: List[String]) = {
+    BlazeBuilder.bindLocal(ProxyPort)
+      .mountService(jsonProxy(httpClient), "/api")
+      .start
+  }
+
+  override def shutdown(server: Server) = {
     httpClient.shutdownNow()
+    super.shutdown(server)
   }
 
   def getStatus(client: Client): \/[String, Status] = {

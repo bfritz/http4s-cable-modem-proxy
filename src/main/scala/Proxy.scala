@@ -17,6 +17,12 @@ object Status {
     casecodec2(Status.apply, Status.unapply)("status", "uptime")
 }
 
+/**
+ * Listens at {@link http://localhost:8090/api/status} and, once per
+ * request, scrapes the HTML on our fake cable modem to extract modem
+ * status details.  They're stuffed into the {@code Status} case class
+ * and marshalled to JSON using Argonaut.
+ */
 object Proxy extends ServerApp {
   import scala.concurrent.duration._
 

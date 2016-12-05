@@ -18,8 +18,10 @@ object Status {
 }
 
 object Proxy extends ServerApp {
+  import scala.concurrent.duration._
 
   private val ProxyPort = 8090
+  private val ModemResponseTimeout = 5.seconds
   private val StatusCellSelector = "tr:eq(7) td:eq(1)" // in first table
   private val UptimeCellSelector = "tr:eq(2) td:eq(1)" // in second table
   private val StatusPage = "http://localhost:8080/indexData.htm"
@@ -46,20 +48,24 @@ object Proxy extends ServerApp {
     super.shutdown(server)
   }
 
-  def getStatus(client: Client): \/[String, Status] = {
+  def getStatus(client: Client): String \/ Status = {
+    val request = client.expect[String](StatusPage)
+    request.unsafePerformSyncAttemptFor(ModemResponseTimeout) match {
+      case \/-(pageHtml) => \/-(scrapeStatus(pageHtml))
+      case -\/(ex)       => -\/(ex.getMessage)
+    }
+  }
+
+  def scrapeStatus(pageHtml: String): Status = {
     import net.ruippeixotog.scalascraper.browser.JsoupBrowser
     import net.ruippeixotog.scalascraper.dsl.DSL._, Extract.text, Extract.elementList
     import net.ruippeixotog.scalascraper.model.Element
-
-    val request = client.expect[String](StatusPage)
-    val pageHtml = request.run
 
     val browser = JsoupBrowser()
     val doc = browser.parseString(pageHtml)
     val tables: List[Element] = doc >> elementList("table")
     val status: Option[String] = tables.lift(0).flatMap(_ >?> text(StatusCellSelector))
     val uptimeText: Option[String] = tables.lift(1).flatMap(_ >?> text(UptimeCellSelector))
-
-    \/-(Status(status, uptimeText))
+    Status(status, uptimeText)
   }
 }
